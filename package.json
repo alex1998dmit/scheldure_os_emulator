@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "core-js": "^2.6.5",
+    "unique-names-generator": "^3.0.0",
     "vue": "^2.6.10"
   },
   "devDependencies": {
