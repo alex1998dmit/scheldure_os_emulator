@@ -18,7 +18,7 @@
                 <h6>Process name: {{ processes.current.name }}</h6>
                 <div class="progress">
                     <div class="progress-bar" role="progressbar" :style="{ width: (utils.executingCounter / Math.floor(processes.current.time / 1000)) * 100 + '%' }" v-bind:aria-valuenow="(utils.executingCounter / Math.floor(processes.current.time / 1000)) * 100" aria-valuemin="0" aria-valuemax="100">
-                        {{ (utils.executingCounter / Math.floor(processes.current.time / 1000)) * 100 }} %
+                        {{ Math.floor((utils.executingCounter / Math.floor(processes.current.time / 1000)) * 100) }} %
                     </div>
                 </div>
             </div>
@@ -30,6 +30,9 @@
                 </button>
                 <button class="btn btn-control btn-success" @click="addProcess">
                     Add process
+                </button>
+                <button class="btn btn-control btn-danger" @click="callInterrupt">
+                    Call interrupt
                 </button>
             </div>
         </div>
@@ -102,7 +105,7 @@
             },
             executeProcesses () {
                 let delay = 0
-                this.sortedProcesses.forEach((process) => {
+                this.sortedProcesses.forEach((process, processIndex) => {
                     if (process.status === 'Await') {
                         this.utils.timers.push(
                             setTimeout(() => {
@@ -118,6 +121,9 @@
                                     clearInterval(timerId)
                                     process.status = "Finished"
                                     this.utils.executingCounter = 0
+                                    if (process.type === 'interrupt') {
+                                        this.processes.items.splice(processIndex, 1)
+                                    }
                                 }, process.time)
                             }, delay))
                         delay = delay + process.time + 1000
@@ -128,6 +134,7 @@
                 this.processes.items.push({
                     id: step,
                     name: uniqueNamesGenerator(),
+                    type: 'process',
                     priority: Math.floor(Math.random() * 10),
                     time: Math.floor(Math.random() * 10000),
                     status: 'Await',
@@ -141,6 +148,22 @@
             },
             resetExecutingProcesses() {
                 this.utils.timers.forEach(timer => { clearInterval(timer) })
+            },
+            generateInterruptProcess() {
+                this.processes.items.push({
+                    id: 1001,
+                    name: 'interrupt',
+                    type: 'interrupt',
+                    priority: 10000,
+                    time: Math.floor(Math.random() * 10000),
+                    status: 'Await',
+                    memory: Math.floor(Math.random() * (this.system.memory - 1) + 1)
+                })
+            },
+            callInterrupt () {
+                this.generateInterruptProcess()
+                this.resetExecutingProcesses()
+                this.executeProcesses()
             }
         }
     }
