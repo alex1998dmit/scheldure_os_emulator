@@ -23,6 +23,11 @@
                 </div>
             </div>
         </div>
+        <div class="col-md-12">
+            <div class="show-command-status text-left">
+                <h5>Current Command: {{ commands.current.description }}</h5>
+            </div>
+        </div>
         <div class="col-md-12 text-left">
             <div class="control-buttons block">
                 <button class="btn btn-control btn-primary btn-xs" @click="executeProcesses">
@@ -44,6 +49,7 @@
                     <th>Name</th>
                     <th>Priority</th>
                     <th>Execute time</th>
+                    <th>Process Type</th>
                     <th>Memory</th>
                     <th>Execute proccess</th>
                 </tr>
@@ -54,6 +60,7 @@
                     <td>{{ process.name }}</td>
                     <td>{{ process.priority }}</td>
                     <td>{{ process.time }}</td>
+                    <td>{{ process.type }}</td>
                     <td>{{ process.memory }}</td>
                     <td>{{ process.status }}</td>
                 </tr>
@@ -70,6 +77,51 @@
         name: "Schedule",
         data () {
             return {
+                commands: {
+                    items: [
+                        {
+                            id: 0,
+                            code: 'ReadFromMemory',
+                            description: 'Чтение из памяти',
+                            processStatus: 'Инициализация IO'
+                        },
+                        {
+                            id: 1,
+                            code: 'IncrementIP',
+                            description: 'Увеличение счетчика команд',
+                            processStatus: 'Активен'
+                        },
+                        {
+                            id: 2,
+                            code: 'RecognizeCodOperation',
+                            description: 'Распознавание команды',
+                            processStatus: 'Активен'
+                        },
+                        {
+                            id: 3,
+                            code: 'ReadOperands',
+                            description: 'Чтение операндов из аппаратной памяти',
+                            processStatus: 'Инициализация IO'
+                        },
+                        {
+                            id: 4,
+                            code: 'CodOрeration',
+                            description: 'Выполнение операции',
+                            processStatus: 'Активен'
+                        },
+                        {
+                            id: 5,
+                            code: 'WriteCodeResult',
+                            description: 'Запись результата операции в аппаратную память',
+                            processStatus: 'Инициализация IO'
+                        }
+                    ],
+                    current: {
+                        id: null,
+                        code: null,
+                        description: null
+                    }
+                },
                 processes: {
                     items: [],
                     current: {
@@ -79,11 +131,14 @@
                         memory: null,
                         time: null,
                         executing_time: 0,
+                        commands: [],
                     },
                     amount: null,
                 },
                 utils: {
+                    isStart: false,
                     timers: [],
+                    executingProcessesTimers: [],
                     currentTimer: {
                         executingProcessTimerId: null,
                         clearExecutingTimerId: null
@@ -97,7 +152,7 @@
         },
         computed: {
             sortedProcesses () { return this.processes.items.sort((a, b) => { return a.priority > b.priority ? -1 : 1 }) },
-            availableSystemMemory () { return this.system.memory - this.processes.current.memory }
+            availableSystemMemory () { return this.system.memory - this.processes.current.memory },
         },
         mounted() {
             this.generateRandomProcesses()
@@ -112,15 +167,16 @@
             executeProcesses () {
                 let delay = 0
                 this.sortedProcesses.forEach((process, processIndex) => {
-                    if (process.status === 'Await') {
+                    if (process.status !== 'Finished') {
                         this.utils.timers.push(
                             { 'timerId' : setTimeout(() => {
                                 // process executing
                                 const executingProcessTimerId = setInterval(() => {
-                                    console.log('executing', process.name)
                                     this.utils.executingCounter = this.utils.executingCounter + 1
+                                    this.commands.current = process.commands[this.utils.executingCounter - 1]
+                                    process.status = process.commands[this.utils.executingCounter - 1].processStatus
                                 }, 1000)
-                                this.processes.current = { ...process, index: processIndex}
+                                this.processes.current = { ...process, index: processIndex }
                                 const clearExecutingTimerId = setTimeout(() => {
                                     // process finished
                                     clearInterval(executingProcessTimerId)
@@ -128,6 +184,7 @@
                                     this.utils.executingCounter = 0
                                 }, process.time)
                                 this.utils.currentTimer = { executingProcessTimerId, clearExecutingTimerId }
+
                                 }, delay), 'processName': process.name }
                         )
                         delay = delay + process.time + 1000
@@ -135,23 +192,39 @@
                 })
             },
             generateRandomProcess (step = this.processes.items.length) {
+                const commands = this.generateRandomCommandsForProcess()
+                const time = (commands.length) * 1000
                 this.processes.items.push({
                     id: step,
                     name: uniqueNamesGenerator(),
                     type: 'process',
                     priority: Math.floor(Math.random() * 10),
-                    time: Math.floor(Math.random() * 10000),
+                    commands,
+                    time,
                     status: 'Await',
                     memory: Math.floor(Math.random() * (this.system.memory - 1) + 1)
                 })
             },
+            generateRandomCommandsForProcess () {
+                const min = 0
+                const max = this.commands.items.length - 1
+                let commands = []
+                for (let i = 0; i < Math.floor((Math.random() * 10) + 3); i++) {
+                    const id = Math.floor(Math.random() * (max - min)) + min
+                    commands.push(this.commands.items.find(command => command.id === id))
+                }
+                return commands
+            },
             generateInterruptProcess() {
+                const commands = this.generateRandomCommandsForProcess()
+                const time = (commands.length) * 1000
                 this.processes.items.push({
                     id: this.processes.items.length + 100,
                     name: 'interrupt',
                     type: 'interrupt',
-                    priority: Math.floor(Math.random() * 10000),
-                    time: Math.floor(Math.random() * 10000),
+                    priority: Math.floor(Math.random() * 1000000),
+                    time,
+                    commands,
                     status: 'Await',
                     memory: Math.floor(Math.random() * (this.system.memory - 1) + 1)
                 })
@@ -159,24 +232,25 @@
             addProcess () {
                 this.generateRandomProcess()
                 this.updateExecutingProcess()
+                this.resetExecutingCount()
                 this.clearAllTimers()
-                this.removeAllProcessesTimers()
                 this.executeProcesses()
             },
             callInterrupt () {
+                this.updateExecutingProcess()
+                this.updateExecutingProcessStatus()
                 this.generateInterruptProcess()
+                this.resetExecutingCount()
                 this.clearAllTimers()
-                this.removeAllProcessesTimers()
                 this.executeProcesses()
             },
+            // timers
             clearAllTimers () {
-                this.clearAllProcessesTimers()
-                this.clearExecutingTimerId()
-            },
-            clearAllProcessesTimers () {
-              this.utils.timers.forEach(timer => {
-                  clearInterval(timer.timerId)
-              })
+                // Not good
+                let timers = [];
+                for (let i = 0; i < 1000; i ++) {
+                    clearInterval(i)
+                }
             },
             clearExecutingTimerId () {
               clearInterval(this.utils.currentTimer.executingProcessTimerId)
@@ -185,19 +259,19 @@
             removeAllProcessesTimers () {
               this.utils.timers.splice(0, this.utils.timers.length)
             },
-            // Переименоват, функция для пересборки текущего процесса
+            resetExecutingCount() {
+              this.utils.executingCounter = 0
+            },
+            //------------
              updateExecutingProcess () {
                 const process = this.sortedProcesses[this.processes.current.index]
                 this.sortedProcesses[this.processes.current.index].time = process.time - this.utils.executingCounter * 1000
-                this.sortedProcesses[this.processes.current.index].priority = process.priority * 100
+                this.sortedProcesses[this.processes.current.index].priority = process.priority * 10
              },
-            resetExecutingProcesses() {
-                this.utils.timers.forEach((timer) => {
-                    if (this.processes.current.name !== timer.processName) {
-                        clearInterval(timer.timerId)
-                    }
-                })
-            },
+            updateExecutingProcessStatus () {
+                this.sortedProcesses[this.processes.current.index].commands.splice(0, this.utils.executingCounter)
+                this.sortedProcesses[this.processes.current.index].status = 'Blocked'
+            }
         }
     }
 </script>
