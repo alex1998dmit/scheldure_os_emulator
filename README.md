@@ -1,29 +1,17 @@
-# schedule
+# Schedule emulator
 
-## Project setup
-```
-npm install
-```
+## Quick start
+* ```npm install ```
+* ```npm run serve ```
+* ``` enjoy :) ```
 
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
+## Work example
 
-### Compiles and minifies for production
-```
-npm run build
-```
+### Simple executing
+![](https://media.giphy.com/media/ckw2SdFMFn2sUZH6J4/giphy.gif)
 
-### Run your tests
-```
-npm run test
-```
+### Executing in not multi mode
+![](https://media.giphy.com/media/UoRtmuYliVWXA05DEr/giphy.gif)
 
-### Lints and fixes files
-```
-npm run lint
-```
-
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+### Executing with interrupts and new processes, configs
+![](https://media.giphy.com/media/KzhhWOpizNUWv3gVe2/giphy.gif)
